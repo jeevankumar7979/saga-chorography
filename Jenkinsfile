@@ -7,6 +7,10 @@ pipeline {
         timestamps()
     }
 
+    triggers {
+        githubPush()
+    }
+
     environment {
         DOCKERHUB_NAMESPACE = 'jeevan7979'
         IMAGE_PREFIX = "${DOCKERHUB_NAMESPACE}/saga-chorography"
@@ -67,6 +71,11 @@ pipeline {
                 sh '''
                     set -eu
                     export KUBECONFIG="$KUBECONFIG_CREDENTIALS"
+                    # Docker Desktop exports a localhost-only API endpoint; Jenkins runs in a container.
+                    sed -E -i 's#https://127[.]0[.]0[.]1:#https://host.docker.internal:#' "$KUBECONFIG"
+                    kubectl config set-cluster docker-desktop \
+                      --server="$(kubectl config view --raw --minify -o jsonpath='{.clusters[0].cluster.server}')" \
+                      --tls-server-name=localhost
                     kubectl apply --filename k8s
                     kubectl --namespace saga set image deployment/order-service \
                       order-service="$IMAGE_PREFIX-order-service:$IMAGE_TAG"
