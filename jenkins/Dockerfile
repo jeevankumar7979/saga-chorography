@@ -3,7 +3,7 @@ FROM jenkins/jenkins:lts-jdk21
 USER root
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends ca-certificates curl git gnupg docker.io \
+    && apt-get install -y --no-install-recommends ca-certificates curl git gnupg docker.io docker-cli \
     && curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.36/deb/Release.key \
        | gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg \
     && echo 'deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.36/deb/ /' \
