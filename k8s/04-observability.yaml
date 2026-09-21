@@ -1,0 +1,57 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: otel-lgtm
+  namespace: saga
+spec:
+  selector: {app: otel-lgtm}
+  ports:
+    - {name: otlp, port: 4318, targetPort: 4318}
+    - {name: grafana, port: 3000, targetPort: 3000}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: otel-lgtm
+  namespace: saga
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: otel-lgtm}}
+  template:
+    metadata: {labels: {app: otel-lgtm}}
+    spec:
+      containers:
+        - name: otel-lgtm
+          image: "grafana/otel-lgtm:latest"
+          ports:
+            - {containerPort: 4318}
+            - {containerPort: 3000}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kafka-ui
+  namespace: saga
+spec:
+  type: LoadBalancer
+  selector: {app: kafka-ui}
+  ports: [{port: 8080, targetPort: 8080}]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kafka-ui
+  namespace: saga
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: kafka-ui}}
+  template:
+    metadata: {labels: {app: kafka-ui}}
+    spec:
+      containers:
+        - name: kafka-ui
+          image: "provectuslabs/kafka-ui:latest"
+          ports: [{containerPort: 8080}]
+          env:
+            - {name: KAFKA_CLUSTERS_0_NAME, value: local}
+            - {name: KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS, value: "kafka:9092"}

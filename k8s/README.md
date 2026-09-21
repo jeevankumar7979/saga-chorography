@@ -6,7 +6,7 @@ Build the application images in the cluster's image runtime, then deploy the sta
 docker build -t saga/order-service:latest ./order-service
 docker build -t saga/payment-service:latest ./payment-service
 docker build -t saga/inventory-service:latest ./inventory-service
-kubectl apply -f k8s/saga.yaml
+kubectl apply -f k8s
 ```
 
 The manifests use `LoadBalancer` services for the three APIs and Kafka UI.

@@ -67,7 +67,7 @@ pipeline {
                 sh '''
                     set -eu
                     export KUBECONFIG="$KUBECONFIG_CREDENTIALS"
-                    kubectl apply --filename k8s/saga.yaml
+                    kubectl apply --filename k8s
                     kubectl --namespace saga set image deployment/order-service \
                       order-service="$IMAGE_PREFIX-order-service:$IMAGE_TAG"
                     kubectl --namespace saga set image deployment/payment-service \

@@ -5,7 +5,7 @@ Each push to `main` can build and deploy the complete application:
 1. Compile all three Spring Boot services.
 2. Build Docker images.
 3. Push commit-tagged images to Docker Hub.
-4. Apply the Kubernetes resources.
+4. Apply the Kubernetes resources from the separate files in `k8s/`.
 5. Update the three application deployments to the pushed image tag.
 6. Wait for all three rollouts to complete.
 
@@ -39,6 +39,10 @@ Create a **Pipeline** job and configure:
 - **Credentials:** an SSH private key credential with access to the repository
 - **Branch:** `*/main`
 - **Script path:** `Jenkinsfile`
+
+Build the Jenkins controller image from `jenkins/Dockerfile` before creating
+the job. Mount `/var/run/docker.sock` into the Jenkins container so the
+pipeline can build Docker images.
 
 For automatic builds, add this GitHub webhook:
 

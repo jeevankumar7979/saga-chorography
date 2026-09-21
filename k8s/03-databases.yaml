@@ -1,0 +1,137 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: order-db
+  namespace: saga
+spec:
+  selector: {app: order-db}
+  ports: [{port: 5432, targetPort: 5432}]
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: order-db-data
+  namespace: saga
+spec:
+  accessModes: ["ReadWriteOnce"]
+  resources:
+    requests: {storage: 1Gi}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: order-db
+  namespace: saga
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: order-db}}
+  template:
+    metadata: {labels: {app: order-db}}
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:16-alpine
+          ports: [{containerPort: 5432}]
+          env:
+            - {name: POSTGRES_DB, value: orderdb}
+            - name: POSTGRES_USER
+              valueFrom: {secretKeyRef: {name: database-credentials, key: order-username}}
+            - name: POSTGRES_PASSWORD
+              valueFrom: {secretKeyRef: {name: database-credentials, key: order-password}}
+          readinessProbe:
+            exec: {command: ["sh", "-ec", "pg_isready -U \"$POSTGRES_USER\" -d \"$POSTGRES_DB\""]}
+            periodSeconds: 5
+          volumeMounts: [{name: data, mountPath: /var/lib/postgresql/data}]
+      volumes: [{name: data, persistentVolumeClaim: {claimName: order-db-data}}]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: payment-db
+  namespace: saga
+spec:
+  selector: {app: payment-db}
+  ports: [{port: 5432, targetPort: 5432}]
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: payment-db-data
+  namespace: saga
+spec:
+  accessModes: ["ReadWriteOnce"]
+  resources:
+    requests: {storage: 1Gi}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: payment-db
+  namespace: saga
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: payment-db}}
+  template:
+    metadata: {labels: {app: payment-db}}
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:16-alpine
+          ports: [{containerPort: 5432}]
+          env:
+            - {name: POSTGRES_DB, value: paymentdb}
+            - name: POSTGRES_USER
+              valueFrom: {secretKeyRef: {name: database-credentials, key: payment-username}}
+            - name: POSTGRES_PASSWORD
+              valueFrom: {secretKeyRef: {name: database-credentials, key: payment-password}}
+          readinessProbe:
+            exec: {command: ["sh", "-ec", "pg_isready -U \"$POSTGRES_USER\" -d \"$POSTGRES_DB\""]}
+            periodSeconds: 5
+          volumeMounts: [{name: data, mountPath: /var/lib/postgresql/data}]
+      volumes: [{name: data, persistentVolumeClaim: {claimName: payment-db-data}}]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: inventory-db
+  namespace: saga
+spec:
+  selector: {app: inventory-db}
+  ports: [{port: 5432, targetPort: 5432}]
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: inventory-db-data
+  namespace: saga
+spec:
+  accessModes: ["ReadWriteOnce"]
+  resources:
+    requests: {storage: 1Gi}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: inventory-db
+  namespace: saga
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: inventory-db}}
+  template:
+    metadata: {labels: {app: inventory-db}}
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:16-alpine
+          ports: [{containerPort: 5432}]
+          env:
+            - {name: POSTGRES_DB, value: inventorydb}
+            - name: POSTGRES_USER
+              valueFrom: {secretKeyRef: {name: database-credentials, key: inventory-username}}
+            - name: POSTGRES_PASSWORD
+              valueFrom: {secretKeyRef: {name: database-credentials, key: inventory-password}}
+          readinessProbe:
+            exec: {command: ["sh", "-ec", "pg_isready -U \"$POSTGRES_USER\" -d \"$POSTGRES_DB\""]}
+            periodSeconds: 5
+          volumeMounts: [{name: data, mountPath: /var/lib/postgresql/data}]
+      volumes: [{name: data, persistentVolumeClaim: {claimName: inventory-db-data}}]
