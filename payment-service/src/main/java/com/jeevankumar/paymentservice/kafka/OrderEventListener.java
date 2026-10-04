@@ -11,6 +11,7 @@ import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import com.jeevankumar.paymentservice.service.RecentOrderTracker;
 import java.util.UUID;
 
 @Component
@@ -23,11 +24,14 @@ public class OrderEventListener {
 
     private final KafkaTemplate<String, Object> kafkaTemplate;
     private final PaymentRepository paymentRepository;
+    private final RecentOrderTracker recentOrderTracker;
 
-    public OrderEventListener(KafkaTemplate<String, Object> kafkaTemplate, PaymentRepository paymentRepository) {
+    public OrderEventListener(KafkaTemplate<String, Object> kafkaTemplate, PaymentRepository paymentRepository,
+                              RecentOrderTracker recentOrderTracker) {
         this.kafkaTemplate = kafkaTemplate;
         this.kafkaTemplate.setObservationEnabled(true);
         this.paymentRepository = paymentRepository;
+        this.recentOrderTracker = recentOrderTracker;
     }
 
     @KafkaListener(topics = ORDER_EVENT_TOPIC, containerFactory = "orderEventKafkaListenerContainerFactory")
@@ -35,21 +39,39 @@ public class OrderEventListener {
         log.info("payment-service received order-event {}", orderEvent);
 
         // idempotency check here
-        if(paymentRepository.existsByOrderId(orderEvent.orderId())) {
-            log.warn("payment-service received order-id {} already exists", orderEvent.orderId());
+        String orderId;
+        String customerId;
+        String productId;
+        Integer quantity;
+        BigDecimal amount;
+        switch (orderEvent) {
+            case OrderEvent(String id, String customer, String product, Integer units, BigDecimal total, Instant timestamp) -> {
+                orderId = id;
+                customerId = customer;
+                productId = product;
+                quantity = units;
+                amount = total;
+            }
+            case null -> throw new IllegalArgumentException("Order event must not be null");
+        }
+
+        if (paymentRepository.existsByOrderId(orderId)) {
+            log.warn("payment-service received order-id {} already exists", orderId);
             return;
         }
 
-        boolean isApproved = orderEvent.amount().compareTo(FAILURE_THRESHOLD) <= 0;
-        PaymentEvent.PaymentStatus status = isApproved ? PaymentEvent.PaymentStatus.PAID
-                : PaymentEvent.PaymentStatus.FAILED;
+        recentOrderTracker.record(orderId);
+        PaymentEvent.PaymentStatus status = switch (amount.compareTo(FAILURE_THRESHOLD)) {
+            case -1, 0 -> PaymentEvent.PaymentStatus.PAID;
+            default -> PaymentEvent.PaymentStatus.FAILED;
+        };
         String paymentId = UUID.randomUUID().toString();
 
         // save to payment db
-        paymentRepository.save(new PaymentEntity(orderEvent.orderId(), paymentId, orderEvent.amount(), status));
+        paymentRepository.save(new PaymentEntity(orderId, paymentId, amount, status));
 
         PaymentEvent paymentEvent = new PaymentEvent(
-                orderEvent.orderId(),
+                orderId,
                 paymentId,
                 status,
                 Instant.now()

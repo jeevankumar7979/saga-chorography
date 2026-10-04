@@ -2,6 +2,7 @@ package com.jeevankumar.inventoryservice.config;
 
 import com.jeevankumar.inventoryservice.model.OrderEvent;
 import com.jeevankumar.inventoryservice.model.PaymentEvent;
+import com.jeevankumar.inventoryservice.model.ProductEvent;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.springframework.beans.factory.annotation.Value;
@@ -64,6 +65,21 @@ public class KafkaConsumerConfig {
     public ConcurrentKafkaListenerContainerFactory<String, PaymentEvent> paymentEventKafkaListenerContainerFactory() {
         ConcurrentKafkaListenerContainerFactory<String, PaymentEvent> factory = new ConcurrentKafkaListenerContainerFactory<>();
         factory.setConsumerFactory(paymentEventConsumerFactory());
+        factory.getContainerProperties().setObservationEnabled(true);
+        return factory;
+    }
+
+    @Bean
+    public ConsumerFactory<String, ProductEvent> productEventConsumerFactory() {
+        Map<String, Object> props = baseProps();
+        props.put(JsonDeserializer.VALUE_DEFAULT_TYPE, ProductEvent.class.getName());
+        return new DefaultKafkaConsumerFactory<>(props);
+    }
+
+    @Bean
+    public ConcurrentKafkaListenerContainerFactory<String, ProductEvent> productEventKafkaListenerContainerFactory() {
+        ConcurrentKafkaListenerContainerFactory<String, ProductEvent> factory = new ConcurrentKafkaListenerContainerFactory<>();
+        factory.setConsumerFactory(productEventConsumerFactory());
         factory.getContainerProperties().setObservationEnabled(true);
         return factory;
     }

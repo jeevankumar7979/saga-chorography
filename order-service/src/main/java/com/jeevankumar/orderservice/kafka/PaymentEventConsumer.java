@@ -7,6 +7,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
 
+import java.time.Instant;
+
 @Slf4j
 @Component
 public class PaymentEventConsumer {
@@ -20,9 +22,14 @@ public class PaymentEventConsumer {
     public void onPaymentEvent(PaymentEvent paymentEvent) {
         log.info("order-service received payment-event {}", paymentEvent);
 
-        OrderEntity.Stage stage = paymentEvent.status() == PaymentEvent.PaymentStatus.PAID
-                ? OrderEntity.Stage.PAYMENT_CONFIRMED
-                : OrderEntity.Stage.PAYMENT_FAILED;
+        OrderEntity.Stage stage = switch (paymentEvent) {
+            case PaymentEvent(String orderId, String paymentId, PaymentEvent.PaymentStatus status, Instant timestamp) ->
+                    switch (status) {
+                        case PAID -> OrderEntity.Stage.PAYMENT_CONFIRMED;
+                        case FAILED, REFUNDED -> OrderEntity.Stage.PAYMENT_FAILED;
+                    };
+            case null -> throw new IllegalArgumentException("Payment event must not be null");
+        };
 
         orderService.updatePaymentStage(paymentEvent.orderId(), stage);
 

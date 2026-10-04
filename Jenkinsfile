@@ -38,6 +38,9 @@ pipeline {
                     ./order-service/mvnw -q -f order-service/pom.xml -DskipTests package
                     ./payment-service/mvnw -q -f payment-service/pom.xml -DskipTests package
                     ./inventory-service/mvnw -q -f inventory-service/pom.xml -DskipTests package
+                    mvn -q -f user-service/pom.xml -DskipTests package
+                    mvn -q -f product-service/pom.xml -DskipTests package
+                    mvn -q -f api-gateway/pom.xml -DskipTests package
                 '''
             }
         }
@@ -49,6 +52,9 @@ pipeline {
                     docker build --tag "$IMAGE_PREFIX-order-service:$IMAGE_TAG" ./order-service
                     docker build --tag "$IMAGE_PREFIX-payment-service:$IMAGE_TAG" ./payment-service
                     docker build --tag "$IMAGE_PREFIX-inventory-service:$IMAGE_TAG" ./inventory-service
+                    docker build --tag "$IMAGE_PREFIX-user-service:$IMAGE_TAG" ./user-service
+                    docker build --tag "$IMAGE_PREFIX-product-service:$IMAGE_TAG" ./product-service
+                    docker build --tag "$IMAGE_PREFIX-api-gateway:$IMAGE_TAG" ./api-gateway
                 '''
             }
         }
@@ -61,6 +67,9 @@ pipeline {
                     docker push "$IMAGE_PREFIX-order-service:$IMAGE_TAG"
                     docker push "$IMAGE_PREFIX-payment-service:$IMAGE_TAG"
                     docker push "$IMAGE_PREFIX-inventory-service:$IMAGE_TAG"
+                    docker push "$IMAGE_PREFIX-user-service:$IMAGE_TAG"
+                    docker push "$IMAGE_PREFIX-product-service:$IMAGE_TAG"
+                    docker push "$IMAGE_PREFIX-api-gateway:$IMAGE_TAG"
                     docker logout
                 '''
             }
@@ -84,9 +93,18 @@ pipeline {
                       payment-service="$IMAGE_PREFIX-payment-service:$IMAGE_TAG"
                     kubectl --namespace saga set image deployment/inventory-service \
                       inventory-service="$IMAGE_PREFIX-inventory-service:$IMAGE_TAG"
+                    kubectl --namespace saga set image deployment/user-service \
+                      user-service="$IMAGE_PREFIX-user-service:$IMAGE_TAG"
+                    kubectl --namespace saga set image deployment/product-service \
+                      product-service="$IMAGE_PREFIX-product-service:$IMAGE_TAG"
+                    kubectl --namespace saga set image deployment/api-gateway \
+                      api-gateway="$IMAGE_PREFIX-api-gateway:$IMAGE_TAG"
                     kubectl --namespace saga rollout status deployment/order-service --timeout=180s
                     kubectl --namespace saga rollout status deployment/payment-service --timeout=180s
                     kubectl --namespace saga rollout status deployment/inventory-service --timeout=180s
+                    kubectl --namespace saga rollout status deployment/user-service --timeout=180s
+                    kubectl --namespace saga rollout status deployment/product-service --timeout=180s
+                    kubectl --namespace saga rollout status deployment/api-gateway --timeout=180s
                 '''
             }
         }

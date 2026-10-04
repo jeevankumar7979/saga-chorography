@@ -37,6 +37,7 @@ services:
       kafka-topics --create --if-not-exists --topic order-event --bootstrap-server kafka:29092 --partitions 3 --replication-factor 1
       kafka-topics --create --if-not-exists --topic payment-event --bootstrap-server kafka:29092 --partitions 3 --replication-factor 1
       kafka-topics --create --if-not-exists --topic inventory-event --bootstrap-server kafka:29092 --partitions 3 --replication-factor 1
+      kafka-topics --create --if-not-exists --topic product-event --bootstrap-server kafka:29092 --partitions 3 --replication-factor 1
       kafka-topics --list --bootstrap-server kafka:29092
       "
 
@@ -44,7 +45,7 @@ services:
     image: provectuslabs/kafka-ui:latest
     container_name: kafka-ui
     ports:
-      - "8080:8080"
+      - "8090:8080"
     environment:
       KAFKA_CLUSTERS_0_NAME: local
       KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:29092
@@ -113,6 +114,40 @@ services:
       timeout: 5s
       retries: 10
 
+  user-db:
+    image: postgres:16-alpine
+    container_name: user-db
+    environment:
+      POSTGRES_DB: userdb
+      POSTGRES_USER: user_user
+      POSTGRES_PASSWORD: user_pass
+    ports:
+      - "5436:5432"
+    volumes:
+      - user-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user_user -d userdb"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  product-db:
+    image: postgres:16-alpine
+    container_name: product-db
+    environment:
+      POSTGRES_DB: productdb
+      POSTGRES_USER: product_user
+      POSTGRES_PASSWORD: product_pass
+    ports:
+      - "5437:5432"
+    volumes:
+      - product-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U product_user -d productdb"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
   # ---- application services ----
 
   order-service:
@@ -125,6 +160,7 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://order-db:5432/orderdb
       SPRING_DATASOURCE_USERNAME: order_user
       SPRING_DATASOURCE_PASSWORD: order_pass
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET before starting Docker Compose}
       OTEL_SERVICE_NAME: order-service
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-lgtm:4318
       OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: http://otel-lgtm:4318/v1/traces
@@ -149,6 +185,7 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://payment-db:5432/paymentdb
       SPRING_DATASOURCE_USERNAME: payment_user
       SPRING_DATASOURCE_PASSWORD: payment_pass
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET before starting Docker Compose}
       OTEL_SERVICE_NAME: payment-service
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-lgtm:4318
       OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: http://otel-lgtm:4318/v1/traces
@@ -173,6 +210,7 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://inventory-db:5432/inventorydb
       SPRING_DATASOURCE_USERNAME: inventory_user
       SPRING_DATASOURCE_PASSWORD: inventory_pass
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET before starting Docker Compose}
       OTEL_SERVICE_NAME: inventory-service
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-lgtm:4318
       OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: http://otel-lgtm:4318/v1/traces
@@ -187,8 +225,51 @@ services:
       otel-lgtm:
         condition: service_started
 
+  user-service:
+    build: ./user-service
+    container_name: user-service
+    ports: ["8084:8084"]
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://user-db:5432/userdb
+      SPRING_DATASOURCE_USERNAME: user_user
+      SPRING_DATASOURCE_PASSWORD: user_pass
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET before starting Docker Compose}
+      USER_ADMIN_USERNAME: ${USER_ADMIN_USERNAME:-admin}
+      USER_ADMIN_PASSWORD: ${USER_ADMIN_PASSWORD:?Set USER_ADMIN_PASSWORD before starting Docker Compose}
+    depends_on:
+      user-db: {condition: service_healthy}
+
+  product-service:
+    build: ./product-service
+    container_name: product-service
+    ports: ["8085:8085"]
+    environment:
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      SPRING_DATASOURCE_URL: jdbc:postgresql://product-db:5432/productdb
+      SPRING_DATASOURCE_USERNAME: product_user
+      SPRING_DATASOURCE_PASSWORD: product_pass
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET before starting Docker Compose}
+    depends_on:
+      product-db: {condition: service_healthy}
+
+  api-gateway:
+    build: ./api-gateway
+    container_name: api-gateway
+    ports: ["8080:8080"]
+    environment:
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET before starting Docker Compose}
+      USER_SERVICE_URL: http://user-service:8084
+      PRODUCT_SERVICE_URL: http://product-service:8085
+      ORDER_SERVICE_URL: http://order-service:8081
+    depends_on:
+      user-service: {condition: service_started}
+      product-service: {condition: service_started}
+      order-service: {condition: service_started}
+
 volumes:
   kafka-data:
   order-db-data:
   payment-db-data:
   inventory-db-data:
+  user-db-data:
+  product-db-data:

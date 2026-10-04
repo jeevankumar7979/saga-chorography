@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 public interface OrderRepository extends JpaRepository<OrderEntity, String> {
+    java.util.List<OrderEntity> findByCustomerIdOrderByCreatedAtDesc(String customerId);
     /**
      * Atomic, single-column update. This is deliberate: payment-event and
      * inventory-event for the same order can arrive on different consumer

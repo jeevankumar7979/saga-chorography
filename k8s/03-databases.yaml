@@ -135,3 +135,69 @@ spec:
             periodSeconds: 5
           volumeMounts: [{name: data, mountPath: /var/lib/postgresql/data}]
       volumes: [{name: data, persistentVolumeClaim: {claimName: inventory-db-data}}]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: user-db
+  namespace: saga
+spec:
+  selector: {app: user-db}
+  ports: [{port: 5432, targetPort: 5432}]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: user-db
+  namespace: saga
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: user-db}}
+  template:
+    metadata: {labels: {app: user-db}}
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:16-alpine
+          ports: [{containerPort: 5432}]
+          env:
+            - {name: POSTGRES_DB, value: userdb}
+            - name: POSTGRES_USER
+              valueFrom: {secretKeyRef: {name: database-credentials, key: user-username}}
+            - name: POSTGRES_PASSWORD
+              valueFrom: {secretKeyRef: {name: database-credentials, key: user-password}}
+          volumeMounts: [{name: data, mountPath: /var/lib/postgresql/data}]
+      volumes: [{name: data, emptyDir: {}}]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: product-db
+  namespace: saga
+spec:
+  selector: {app: product-db}
+  ports: [{port: 5432, targetPort: 5432}]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: product-db
+  namespace: saga
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: product-db}}
+  template:
+    metadata: {labels: {app: product-db}}
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:16-alpine
+          ports: [{containerPort: 5432}]
+          env:
+            - {name: POSTGRES_DB, value: productdb}
+            - name: POSTGRES_USER
+              valueFrom: {secretKeyRef: {name: database-credentials, key: product-username}}
+            - name: POSTGRES_PASSWORD
+              valueFrom: {secretKeyRef: {name: database-credentials, key: product-password}}
+          volumeMounts: [{name: data, mountPath: /var/lib/postgresql/data}]
+      volumes: [{name: data, emptyDir: {}}]

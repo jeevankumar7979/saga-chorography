@@ -7,6 +7,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
 
+import java.time.Instant;
+
 
 @Slf4j
 @Component
@@ -22,10 +24,14 @@ public class InventoryEventConsumer {
     public void onInventoryEvent(InventoryEvent event) {
         log.info("order-service received inventory-event: {}", event);
 
-        OrderEntity.Stage stage = switch (event.status()) {
-            case RESERVED -> OrderEntity.Stage.INVENTORY_RESERVED;
-            case OUT_OF_STOCK -> OrderEntity.Stage.INVENTORY_FAILED;
-            case CANCELLED -> OrderEntity.Stage.INVENTORY_CANCELLED;
+        OrderEntity.Stage stage = switch (event) {
+            case InventoryEvent(String orderId, InventoryEvent.InventoryStatus status, Instant timestamp) ->
+                    switch (status) {
+                        case RESERVED -> OrderEntity.Stage.INVENTORY_RESERVED;
+                        case OUT_OF_STOCK -> OrderEntity.Stage.INVENTORY_FAILED;
+                        case CANCELLED -> OrderEntity.Stage.INVENTORY_CANCELLED;
+                    };
+            case null -> throw new IllegalArgumentException("Inventory event must not be null");
         };
 
         orderService.updateInventoryStage(event.orderId(), stage);

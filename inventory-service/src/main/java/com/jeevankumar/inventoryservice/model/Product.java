@@ -26,6 +26,7 @@ public class Product {
 
     public String getProductId() { return productId; }
     public Integer getAvailableQuantity() { return availableQuantity; }
+    public void setAvailableQuantity(Integer availableQuantity) { this.availableQuantity = availableQuantity; }
 
     public boolean hasStock(Integer requested) {
         return availableQuantity >= requested;

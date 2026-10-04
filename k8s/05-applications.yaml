@@ -4,7 +4,7 @@ metadata:
   name: order-service
   namespace: saga
 spec:
-  type: LoadBalancer
+  type: ClusterIP
   selector: {app: order-service}
   ports: [{port: 8081, targetPort: 8081}]
 ---
@@ -31,6 +31,8 @@ spec:
               valueFrom: {secretKeyRef: {name: database-credentials, key: order-username}}
             - name: SPRING_DATASOURCE_PASSWORD
               valueFrom: {secretKeyRef: {name: database-credentials, key: order-password}}
+            - name: JWT_SECRET
+              valueFrom: {secretKeyRef: {name: database-credentials, key: jwt-secret}}
             - {name: OTEL_SERVICE_NAME, value: order-service}
             - {name: OTEL_EXPORTER_OTLP_ENDPOINT, value: "http://otel-lgtm:4318"}
 ---
@@ -40,7 +42,7 @@ metadata:
   name: payment-service
   namespace: saga
 spec:
-  type: LoadBalancer
+  type: ClusterIP
   selector: {app: payment-service}
   ports: [{port: 8082, targetPort: 8082}]
 ---
@@ -67,6 +69,8 @@ spec:
               valueFrom: {secretKeyRef: {name: database-credentials, key: payment-username}}
             - name: SPRING_DATASOURCE_PASSWORD
               valueFrom: {secretKeyRef: {name: database-credentials, key: payment-password}}
+            - name: JWT_SECRET
+              valueFrom: {secretKeyRef: {name: database-credentials, key: jwt-secret}}
             - {name: OTEL_SERVICE_NAME, value: payment-service}
             - {name: OTEL_EXPORTER_OTLP_ENDPOINT, value: "http://otel-lgtm:4318"}
 ---
@@ -76,7 +80,7 @@ metadata:
   name: inventory-service
   namespace: saga
 spec:
-  type: LoadBalancer
+  type: ClusterIP
   selector: {app: inventory-service}
   ports: [{port: 8083, targetPort: 8083}]
 ---
@@ -103,5 +107,111 @@ spec:
               valueFrom: {secretKeyRef: {name: database-credentials, key: inventory-username}}
             - name: SPRING_DATASOURCE_PASSWORD
               valueFrom: {secretKeyRef: {name: database-credentials, key: inventory-password}}
+            - name: JWT_SECRET
+              valueFrom: {secretKeyRef: {name: database-credentials, key: jwt-secret}}
             - {name: OTEL_SERVICE_NAME, value: inventory-service}
             - {name: OTEL_EXPORTER_OTLP_ENDPOINT, value: "http://otel-lgtm:4318"}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: user-service
+  namespace: saga
+spec:
+  type: ClusterIP
+  selector: {app: user-service}
+  ports: [{port: 8084, targetPort: 8084}]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: user-service
+  namespace: saga
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: user-service}}
+  template:
+    metadata: {labels: {app: user-service}}
+    spec:
+      containers:
+        - name: user-service
+          image: "jeevan7979/saga-chorography-user-service:latest"
+          ports: [{containerPort: 8084}]
+          env:
+            - {name: SPRING_DATASOURCE_URL, value: "jdbc:postgresql://user-db:5432/userdb"}
+            - name: SPRING_DATASOURCE_USERNAME
+              valueFrom: {secretKeyRef: {name: database-credentials, key: user-username}}
+            - name: SPRING_DATASOURCE_PASSWORD
+              valueFrom: {secretKeyRef: {name: database-credentials, key: user-password}}
+            - name: JWT_SECRET
+              valueFrom: {secretKeyRef: {name: database-credentials, key: jwt-secret}}
+            - name: USER_ADMIN_USERNAME
+              valueFrom: {secretKeyRef: {name: database-credentials, key: user-admin-username}}
+            - name: USER_ADMIN_PASSWORD
+              valueFrom: {secretKeyRef: {name: database-credentials, key: user-admin-password}}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: product-service
+  namespace: saga
+spec:
+  type: ClusterIP
+  selector: {app: product-service}
+  ports: [{port: 8085, targetPort: 8085}]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: product-service
+  namespace: saga
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: product-service}}
+  template:
+    metadata: {labels: {app: product-service}}
+    spec:
+      containers:
+        - name: product-service
+          image: "jeevan7979/saga-chorography-product-service:latest"
+          ports: [{containerPort: 8085}]
+          env:
+            - {name: SPRING_DATASOURCE_URL, value: "jdbc:postgresql://product-db:5432/productdb"}
+            - name: SPRING_DATASOURCE_USERNAME
+              valueFrom: {secretKeyRef: {name: database-credentials, key: product-username}}
+            - name: SPRING_DATASOURCE_PASSWORD
+              valueFrom: {secretKeyRef: {name: database-credentials, key: product-password}}
+            - name: JWT_SECRET
+              valueFrom: {secretKeyRef: {name: database-credentials, key: jwt-secret}}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: api-gateway
+  namespace: saga
+spec:
+  type: LoadBalancer
+  selector: {app: api-gateway}
+  ports: [{port: 8080, targetPort: 8080}]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api-gateway
+  namespace: saga
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: api-gateway}}
+  template:
+    metadata: {labels: {app: api-gateway}}
+    spec:
+      containers:
+        - name: api-gateway
+          image: "jeevan7979/saga-chorography-api-gateway:latest"
+          ports: [{containerPort: 8080}]
+          env:
+            - name: JWT_SECRET
+              valueFrom: {secretKeyRef: {name: database-credentials, key: jwt-secret}}
+            - {name: USER_SERVICE_URL, value: "http://user-service:8084"}
+            - {name: PRODUCT_SERVICE_URL, value: "http://product-service:8085"}
+            - {name: ORDER_SERVICE_URL, value: "http://order-service:8081"}

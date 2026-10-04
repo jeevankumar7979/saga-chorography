@@ -5,6 +5,9 @@ server:
 spring:
   application:
     name: inventory-service
+  threads:
+    virtual:
+      enabled: true
   datasource:
     url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5435/inventorydb}
     username: ${SPRING_DATASOURCE_USERNAME:inventory_user}
@@ -21,6 +24,14 @@ spring:
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+    consumer:
+      properties:
+        spring.json.trusted.packages: com.jeevankumar.inventoryservice.model
+
+security:
+  jwt:
+    secret: ${JWT_SECRET}
+    issuer: ${JWT_ISSUER:saga-platform}
 
 logging:
   level:

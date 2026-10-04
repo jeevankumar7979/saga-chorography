@@ -33,7 +33,7 @@ metadata:
   name: kafka-ui
   namespace: saga
 spec:
-  type: LoadBalancer
+  type: ClusterIP
   selector: {app: kafka-ui}
   ports: [{port: 8080, targetPort: 8080}]
 ---

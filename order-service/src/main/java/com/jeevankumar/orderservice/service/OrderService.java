@@ -17,10 +17,13 @@ public class OrderService {
 
     private final OrderEventProducer orderEventProducer;
     private final OrderRepository orderRepository;
+    private final RecentOrderTracker recentOrderTracker;
 
-    public OrderService(OrderEventProducer orderEventProducer, OrderRepository orderRepository) {
+    public OrderService(OrderEventProducer orderEventProducer, OrderRepository orderRepository,
+                        RecentOrderTracker recentOrderTracker) {
         this.orderEventProducer = orderEventProducer;
         this.orderRepository = orderRepository;
+        this.recentOrderTracker = recentOrderTracker;
     }
 
     @Transactional
@@ -28,9 +31,18 @@ public class OrderService {
         String orderId = UUID.randomUUID().toString();
         OrderEntity order = new OrderEntity(orderId, customerId, productId, quantity, amount);
         orderRepository.save(order);
+        recentOrderTracker.record(orderId);
 
         orderEventProducer.publish(OrderEvent.of(orderId, customerId, productId, quantity, amount));
         return order;
+    }
+
+    public java.util.List<String> recentOrderIds(String customerId, boolean admin) {
+        if (admin) {
+            return recentOrderTracker.snapshot();
+        }
+        return orderRepository.findByCustomerIdOrderByCreatedAtDesc(customerId).stream()
+                .map(OrderEntity::getOrderId).toList();
     }
 
     @Transactional
@@ -64,8 +76,10 @@ public class OrderService {
     }
 
     @Transactional
-    public OrderEntity getOrder(String orderId) {
-        return orderRepository.findById(orderId).orElse(null);
+    public OrderEntity getOrder(String orderId, String customerId, boolean admin) {
+        return orderRepository.findById(orderId)
+                .filter(order -> admin || order.getCustomerId().equals(customerId))
+                .orElse(null);
     }
 
 }
